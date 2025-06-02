@@ -1,0 +1,19 @@
+# Node
+node_modules/
+.env
+dist/
+build/
+*.log
+
+# Vite / React
+xeno-crm/client/node_modules
+xeno-crm/client/.env
+xeno-crm/client/dist
+
+# IDEs
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
