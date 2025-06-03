@@ -1,3 +1,25 @@
 @import "tailwindcss";
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+:root {
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-bg: #f9fafb;
+  --color-surface: #ffffff;
+  --color-text: #1f2937;
+  --radius-lg: 0.75rem;
+  --font-base: "Inter", sans-serif;
+  --spacing-base: 1rem;
+}
+
+html, body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-base);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}

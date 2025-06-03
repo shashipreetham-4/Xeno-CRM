@@ -1,23 +1,42 @@
 import db from '../db.js';
 
-// Convert rule JSON to WHERE clause
-const buildWhereClause = (rule) => {
-  const conditions = rule.and.map(({ field, operator, value }, index) => {
-    const paramNum = index + 1;
-    return `${field} ${operator} $${paramNum}`;
-  });
+// 🧠 Build WHERE clause from advanced rule object with OR + AND support
+const buildWhereClauseFromGroups = (rule, user_id) => {
+  const orConditions = [];
+  const values = [];
+  let paramCounter = 1;
 
-  const values = rule.and.map((r) =>
-    r.field === 'total_spent' ? parseFloat(r.value) : r.value
-  );
+  for (const group of rule.or) {
+    const andParts = [];
+
+    for (const r of group.and) {
+      const { field, operator, value } = r;
+
+      if (field === 'inactive_for_days') {
+        // Directly inject INTERVAL logic without bind variable
+        andParts.push(`last_order_date < CURRENT_DATE - INTERVAL '${value} days'`);
+      } else {
+        andParts.push(`${field} ${operator} $${paramCounter}`);
+        values.push(field === 'total_spent' ? parseFloat(value) : value);
+        paramCounter++;
+      }
+    }
+
+    if (andParts.length > 0) {
+      orConditions.push(`(${andParts.join(' AND ')})`);
+    }
+  }
+
+  const clause = orConditions.length > 0 ? `(${orConditions.join(' OR ')})` : 'TRUE';
+  values.push(user_id); // Append user_id at the end
 
   return {
-    clause: conditions.join(' AND '),
+    clause: `user_id = $${paramCounter} AND ${clause}`,
     values,
   };
 };
 
-// 🔍 Preview segment
+// 🔍 Preview segment audience count
 export const previewSegment = async (req, res) => {
   const { rule, user_id } = req.body;
 
@@ -26,13 +45,10 @@ export const previewSegment = async (req, res) => {
   }
 
   try {
-    const { clause, values } = buildWhereClause(rule);
-    const query = `
-      SELECT COUNT(*) FROM customers
-      WHERE user_id = $${values.length + 1} AND ${clause}
-    `;
+    const { clause, values } = buildWhereClauseFromGroups(rule, user_id);
+    const query = `SELECT COUNT(*) FROM customers WHERE ${clause}`;
 
-    const result = await db.query(query, [...values, user_id]);
+    const result = await db.query(query, values);
     const count = parseInt(result.rows[0].count, 10);
 
     res.status(200).json({ count });
@@ -64,7 +80,7 @@ export const saveSegment = async (req, res) => {
   }
 };
 
-
+// 📦 Fetch all segments for a user
 export const getSegmentsByUser = async (req, res) => {
   const { user_id } = req.params;
 

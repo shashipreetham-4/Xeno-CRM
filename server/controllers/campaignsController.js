@@ -8,7 +8,7 @@ export const launchCampaign = async (req, res) => {
     return res.status(400).json({ error: 'Missing fields' });
 
   try {
-    // 1. Get segment + rule
+    // 1. Fetch segment + rules
     const segmentRes = await db.query(
       `SELECT rule_json FROM segments WHERE id = $1 AND user_id = $2`,
       [segment_id, user_id]
@@ -16,22 +16,48 @@ export const launchCampaign = async (req, res) => {
     const segment = segmentRes.rows[0];
     if (!segment) return res.status(404).json({ error: 'Segment not found' });
 
-    // 2. Build WHERE clause
     const rule = segment.rule_json;
-    const conditions = rule.and.map(
-      ({ field, operator }, i) => `${field} ${operator} $${i + 1}`
-    );
-    const values = rule.and.map((r) =>
-      r.field === 'total_spent' ? parseFloat(r.value) : r.value
+    if (!rule || !Array.isArray(rule.or)) {
+      return res.status(400).json({ error: 'Invalid rule structure in segment' });
+    }
+
+    // 2. Evaluate each OR group
+    let matchedCustomers = [];
+
+    for (const group of rule.or) {
+      const groupConditions = [];
+      const values = [];
+      let paramIdx = 1;
+
+      for (const r of group.and) {
+        if (r.field === 'inactive_for_days') {
+          groupConditions.push(`last_order_date < CURRENT_DATE - INTERVAL '${r.value} days'`);
+        } else {
+          groupConditions.push(`${r.field} ${r.operator} $${paramIdx}`);
+          values.push(r.field === 'total_spent' ? parseFloat(r.value) : r.value);
+          paramIdx++;
+        }
+      }
+
+      const clause = groupConditions.length > 0
+        ? `user_id = $${paramIdx} AND (${groupConditions.join(' AND ')})`
+        : `user_id = $${paramIdx}`;
+
+      values.push(user_id);
+
+      const customerRes = await db.query(`SELECT * FROM customers WHERE ${clause}`, values);
+      matchedCustomers.push(...customerRes.rows);
+    }
+
+    // 3. Remove duplicates
+    const uniqueCustomers = Object.values(
+      matchedCustomers.reduce((acc, cust) => {
+        acc[cust.id] = cust;
+        return acc;
+      }, {})
     );
 
-    const customerQuery = `
-      SELECT * FROM customers WHERE user_id = $${values.length + 1} AND ${conditions.join(' AND ')}
-    `;
-    const customersRes = await db.query(customerQuery, [...values, user_id]);
-    const customers = customersRes.rows;
-
-    // 3. Create campaign_id and insert into campaigns table
+    // 4. Insert campaign
     const campaignId = uuidv4();
 
     await db.query(
@@ -40,8 +66,8 @@ export const launchCampaign = async (req, res) => {
       [campaignId, user_id, segment_id, message]
     );
 
-    // 4. Simulate sending message
-    for (const cust of customers) {
+    // 5. Send to communication_log
+    for (const cust of uniqueCustomers) {
       const personalized = message.replace('{name}', cust.name);
       const status = Math.random() < 0.9 ? 'SENT' : 'FAILED';
 
@@ -51,7 +77,7 @@ export const launchCampaign = async (req, res) => {
         [campaignId, cust.id, personalized, status]
       );
 
-      // Simulate hitting delivery receipt (optional for now)
+      // simulate vendor delivery receipt
       await fetch('http://localhost:3000/api/campaigns/delivery-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,12 +89,13 @@ export const launchCampaign = async (req, res) => {
       });
     }
 
-    res.status(201).json({ campaign_id: campaignId, total: customers.length });
+    res.status(201).json({ campaign_id: campaignId, total: uniqueCustomers.length });
   } catch (err) {
     console.error('❌ Campaign error:', err);
     res.status(500).json({ error: 'Failed to launch campaign' });
   }
 };
+
 
 export const deliveryReceiptHandler = async (req, res) => {
   const { campaign_id, customer_id, status } = req.body;

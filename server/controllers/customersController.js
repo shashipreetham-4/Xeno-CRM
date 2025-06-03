@@ -69,3 +69,37 @@ export const deleteCustomer = async (req, res) => {
   }
 };
 
+
+export const bulkAddCustomers = async (req, res) => {
+  const { customers, user_id } = req.body;
+
+  if (!Array.isArray(customers) || !user_id) {
+    return res.status(400).json({ error: 'Missing customers array or user_id' });
+  }
+
+  try {
+    for (const row of customers) {
+      const {
+        name = '',
+        email = '',
+        phone = '',
+        total_spent = 0,
+        last_order_date = null,
+      } = row;
+
+      if (!name || !email) continue; // skip invalid rows
+
+      await db.query(
+        `INSERT INTO customers (user_id, name, email, phone, total_spent, last_order_date)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [user_id, name, email, phone, parseFloat(total_spent), last_order_date]
+      );
+    }
+
+    res.status(201).json({ message: '✅ Customers uploaded successfully' });
+  } catch (err) {
+    console.error('❌ Bulk insert error:', err);
+    res.status(500).json({ error: 'Failed to upload customers' });
+  }
+};
+

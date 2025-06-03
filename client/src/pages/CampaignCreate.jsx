@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 const CampaignCreate = () => {
   const [segments, setSegments] = useState([]);
@@ -8,6 +11,7 @@ const CampaignCreate = () => {
   const [message, setMessage] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [loadingAI, setLoadingAI] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserAndSegments = async () => {
@@ -40,96 +44,110 @@ const CampaignCreate = () => {
     });
 
     if (res.ok) {
-      alert('✅ Campaign launched!');
+      navigate('/campaigns');
     } else {
       alert('❌ Failed to launch campaign');
     }
   };
 
   const handleAIGenerate = async () => {
-  if (!aiPrompt) return alert('Please enter a campaign goal');
-  try {
-    setLoadingAI(true);
-    const res = await fetch('/api/ai/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ goal: aiPrompt }),
-    });
-    const data = await res.json();
-    if (data.message) {
-      setMessage(data.message);
-    } else {
-      alert('AI failed to generate message.');
+    if (!aiPrompt) return alert('Please enter a campaign goal');
+    try {
+      setLoadingAI(true);
+      const res = await fetch('/api/ai/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal: aiPrompt }),
+      });
+      const data = await res.json();
+      if (data.message) {
+        setMessage(data.message);
+      } else {
+        alert('AI failed to generate message.');
+      }
+    } catch (err) {
+      alert('AI error: ' + err.message);
+    } finally {
+      setLoadingAI(false);
     }
-  } catch (err) {
-    alert('AI error: ' + err.message);
-  } finally {
-    setLoadingAI(false);
-  }
-};
-
+  };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold">✉️ Launch a Campaign</h2>
+    <div className="flex flex-col min-h-screen bg-gray-100">
 
-      {/* Segment Selector */}
-      <div>
-        <label className="block mb-1 text-sm font-medium">Select Segment</label>
-        <select
-          value={segmentId}
-          onChange={(e) => setSegmentId(e.target.value)}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">-- Select Segment --</option>
-          {segments.map((seg) => (
-            <option key={seg.id} value={seg.id}>
-              {seg.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <main className="flex-grow flex justify-center p-6">
+        <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-8 space-y-8">
+          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+            ✉️ Launch a Campaign
+          </h2>
 
-      {/* AI Message Prompt */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Describe Message Goal (AI will generate)</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder='e.g. "Bring back VIP customers with 20% off"'
-            className="flex-1 p-2 border border-gray-300 rounded"
-          />
-          <button
-            onClick={handleAIGenerate}
-            disabled={loadingAI}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            {loadingAI ? 'Generating...' : '✨ AI Generate'}
-          </button>
+          {/* Segment Selector Card */}
+          <section className="bg-gray-50 rounded-lg p-6 shadow-inner border border-gray-200">
+            <h3 className="text-xl font-semibold mb-3 text-gray-800">Select Segment</h3>
+            <select
+              value={segmentId}
+              onChange={(e) => setSegmentId(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:outline-none transition"
+            >
+              <option value="" disabled>
+                -- Select Segment --
+              </option>
+              {segments.map((seg) => (
+                <option key={seg.id} value={seg.id}>
+                  {seg.name}
+                </option>
+              ))}
+            </select>
+          </section>
+
+          {/* AI Message Prompt Card */}
+          <section className="bg-gray-50 rounded-lg p-6 shadow-inner border border-gray-200">
+            <h3 className="text-xl font-semibold mb-3 text-gray-800">
+              Describe Message Goal <span className="font-normal text-gray-500">(AI will generate)</span>
+            </h3>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder='e.g. "Bring back VIP customers with 20% off"'
+                className="flex-1 p-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-600 focus:outline-none transition"
+              />
+              <button
+                onClick={handleAIGenerate}
+                disabled={loadingAI}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-60 font-semibold"
+              >
+                {loadingAI ? 'Generating...' : '✨ AI Generate'}
+              </button>
+            </div>
+          </section>
+
+          {/* Final Message Box Card */}
+          <section className="bg-gray-50 rounded-lg p-6 shadow-inner border border-gray-200">
+            <h3 className="text-xl font-semibold mb-3 text-gray-800">Final Campaign Message</h3>
+            <textarea
+              rows={6}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Hi {name}, we miss you! Here's 10% off just for you."
+              className="w-full p-4 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:outline-none transition resize-none"
+            />
+          </section>
+
+          {/* Launch Button Card */}
+          <section className="bg-white rounded-lg p-6 text-center">
+            <button
+              onClick={handleLaunch}
+              className="bg-blue-600 text-white px-10 py-4 rounded-lg hover:bg-blue-700 transition font-semibold text-lg shadow-md"
+            >
+              🚀 Launch Campaign
+            </button>
+          </section>
         </div>
-      </div>
+      </main>
 
-      {/* Final Message Box */}
-      <div>
-        <label className="block mb-1 text-sm font-medium">Final Campaign Message</label>
-        <textarea
-          rows={4}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Hi {name}, we miss you! Here's 10% off just for you."
-          className="w-full p-3 border rounded"
-        />
-      </div>
-
-      {/* Launch */}
-      <button
-        onClick={handleLaunch}
-        className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-      >
-        🚀 Launch Campaign
-      </button>
+      <Footer />
     </div>
   );
 };

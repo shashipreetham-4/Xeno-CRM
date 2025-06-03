@@ -14,11 +14,21 @@ router.post('/', async (req, res) => {
   }
 
   const systemPrompt = `
-Convert this description into rule objects like:
-[
-  { "field": "total_spent", "operator": ">", "value": 5000 },
-  { "field": "last_order_date", "operator": "<", "value": "2024-05-01" }
-]
+Convert this description into a JSON object like:
+{
+  "or": [
+    {
+      "and": [
+        { "field": "total_spent", "operator": ">", "value": 5000 },
+        { "field": "inactive_for_days", "operator": ">", "value": 90 }
+      ]
+    }
+  ]
+}
+
+If the user mentions "inactive for X days", use field: "inactive_for_days".
+
+Respond ONLY with the JSON — no explanation, no markdown.
 
 Description: ${prompt}
 `;
@@ -30,7 +40,8 @@ Description: ${prompt}
     });
 
     const raw = response.choices?.[0]?.message?.content?.trim();
-    const rules = JSON.parse(raw);
+    const rules = JSON.parse(raw); // should be an object with { or: [...] }
+
     res.json({ rules });
   } catch (error) {
     console.error('❌ AI rule error:', error.message);
