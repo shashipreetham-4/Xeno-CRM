@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
 import Footer from '../components/Footer';
-import Navbar from '../components/Navbar'
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -23,21 +21,7 @@ const Dashboard = () => {
           return;
         }
 
-        const { data: profileData, error: profileError } = await supabase
-          .from('users')
-          .select('company_name, position')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (profileError) throw profileError;
-
-        if (!profileData?.company_name || !profileData?.position) {
-          navigate('/onboarding');
-          return;
-        }
-
         setUser(currentUser);
-        setProfile(profileData);
       } catch (err) {
         console.error('Dashboard initialization error:', err);
         setError('Failed to load dashboard data. Please try again.');
@@ -60,20 +44,15 @@ const Dashboard = () => {
   };
 
   if (loading) return <div className="p-8 text-center text-lg text-gray-600">Loading dashboard...</div>;
-
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
   return (
-    <div className="min-h-screen flex flex-col min-h-screen bg-gradient-to-br from-white to-blue-50">
-
-
-      {/* Body */}
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-white to-blue-50">
       <main className="max-w-7xl flex-grow mx-auto px-8 py-12">
         <div className="mb-10">
           <h2 className="text-3xl font-semibold text-gray-900 drop-shadow-sm">
-            Welcome, <span className="text-blue-700">{profile.company_name}</span> 👋
+            Welcome, <span className="text-blue-700">{user?.email || 'User'}</span> 👋
           </h2>
-          <p className="text-gray-500 mt-2 text-lg italic tracking-wide">Position: {profile.position}</p>
         </div>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
@@ -87,7 +66,6 @@ const Dashboard = () => {
 
       <Footer />
     </div>
-    
   );
 };
 

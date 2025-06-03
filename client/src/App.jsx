@@ -15,7 +15,6 @@ import AddOrder from './pages/AddOrder';
 import SegmentBuilder from './pages/SegmentBuilder';
 import CampaignCreate from './pages/CampaignCreate';
 import CampaignHistory from './pages/CampaignHistory';
-import OnboardForm from './pages/OnboardForm';
 
 function App() {
   const { session, loading } = useAuth();
@@ -32,7 +31,6 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={session ? <Navigate to="/dashboard" /> : <Login />} />
-        <Route path="/onboarding" element={<OnboardForm />} />
 
         {/* Protected Routes */}
         <Route
@@ -127,7 +125,7 @@ function App() {
           }
         />
 
-        {/* 404 Fallback */}
+        {/* Fallback */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
