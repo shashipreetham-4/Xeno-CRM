@@ -3,7 +3,7 @@ Xeno CRM is a full-stack customer relationship management (CRM) platform built f
 
 
 
-✨ Features
+✨ Features of the project
 ✅ Google Login via Supabase
 
 ✅ Add & view customers with orders
